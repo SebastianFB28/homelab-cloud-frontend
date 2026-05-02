@@ -1,5 +1,14 @@
-import { createApp } from 'vue'
-import './assets/tailwind.css'  
-import App from './App.vue'
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import "./assets/tailwind.css";
+import App from "./App.vue";
+import router from "./router";
+import { vReveal } from "./directives/reveal.js";
 
-createApp(App).mount('#app')
+const app = createApp(App);
+
+app.use(createPinia());
+app.use(router);
+app.directive("reveal", vReveal);
+
+app.mount("#app");

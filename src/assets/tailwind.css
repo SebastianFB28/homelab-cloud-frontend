@@ -1,3 +1,59 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+body { 
+    font-family: 'Inter', sans-serif; 
+    -webkit-font-smoothing: antialiased; 
+}
+
+.material-symbols-outlined { 
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; 
+    vertical-align: middle; 
+}
+
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 30s linear infinite; }
+
+.transition-all-custom { transition: all 0.3s ease; }
+.hover-lift:hover { transform: translateY(-4px); box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.03); }
+.btn-scale:active { transform: scale(0.95); }
+.btn-scale:hover { transform: scale(1.05); }
+
+
+
+/* Clases para la directiva v-reveal */
+.reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
+.reveal.active { opacity: 1; transform: translateY(0); }
+
+
+/* Clases para la directiva v-reveal (asegúrate de que siguen aquí) */
+.reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
+.reveal.active { opacity: 1; transform: translateY(0); }
+
+/* --- NUEVA ANIMACIÓN PARA IMAGEN DIGITAL --- */
+@keyframes digitalAssemble {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+    filter: grayscale(100%) blur(10px);
+  }
+  10% { opacity: 0.5; filter: grayscale(100%) blur(5px); }
+  15% { opacity: 0.2; } /* Ligero parpadeo (Glitch) */
+  20% { opacity: 1; filter: grayscale(50%) blur(2px); }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: grayscale(0%) blur(0px);
+  }
+}
+
+.animate-digital-assemble {
+  /* Duración de 1.2s, empieza suave y termina suave, con un retraso para que coincida con la terminal */
+  animation: digitalAssemble 1.2s ease-out forwards;
+  animation-delay: 0.5s; /* Empieza un poco después del título */
+}
