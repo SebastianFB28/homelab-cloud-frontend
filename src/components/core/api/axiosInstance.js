@@ -1,27 +1,24 @@
-import axios from 'axios';
+import axios from "axios";
+import { useAuthStore } from "@/features/auth/store/auth.js";
 
-// 1. Creamos una instancia base con la URL de tu backend
 const api = axios.create({
-    baseURL: 'http://tu-backend-url.com/api', // Cambiarás esto luego
-    timeout: 10000, // Si el backend no responde en 10s, da error
+  baseURL: "http://localhost:8080/api", // URL temporal
+  timeout: 10000,
+  withCredentials: true, // Fundamental para que las cookies seguras (Refresh Token) viajen al servidor
 });
 
-// 2. Configuramos el Interceptor de Peticiones (Requests)
+// Interceptor de Peticiones
 api.interceptors.request.use(
-    (config) => {
-        // Aquí buscaremos el token (normalmente en localStorage o en Pinia)
-        const token = localStorage.getItem('jwt_token');
+  (config) => {
+    const authStore = useAuthStore();
 
-        // Si hay token, lo inyectamos en la cabecera de Autorización
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        // Si hay un error antes de enviar la petición, lo rechazamos
-        return Promise.reject(error);
+    // Sacamos el token directamente de Pinia (en memoria, más seguro)
+    if (authStore.accessToken) {
+      config.headers.Authorization = `Bearer ${authStore.accessToken}`;
     }
+    return config;
+  },
+  (error) => Promise.reject(error),
 );
 
 export default api;

@@ -1,7 +1,7 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <HelloWorld />
+  <router-view />
 </template>
+
+<script setup>
+// App.vue queda limpio, solo actúa como contenedor del Router
+</script>
