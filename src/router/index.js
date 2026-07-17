@@ -39,6 +39,11 @@ const router = createRouter({
       path: '/server-error',
       name: 'server-error',
       component: () => import('@/components/shared/ServerErrorView.vue')
+    },
+    {
+      path: '/files',
+      name: 'files',
+      component: () => import('@/features/files/views/FilesExplorerView.vue')
     }
   ],
   scrollBehavior(to, from, savedPosition) {

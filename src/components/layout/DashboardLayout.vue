@@ -17,7 +17,7 @@ import { useAuthStore } from '@/features/auth/store/auth.js';
       <nav class="flex flex-col gap-1">
         <RouterLink to="/dashboard" class="flex items-center gap-3 px-3 py-1.5 bg-[#F7F7F5] text-[#37352F] font-medium rounded-[4px] scale-100 active:scale-[0.98] transition-all">
           <span class="material-symbols-outlined text-[20px]">description</span>
-          <span>Files</span>
+          <span>Home</span>
         </RouterLink>
         <RouterLink to="/files" class="flex items-center gap-3 px-3 py-1.5 text-[#37352F]/60 hover:bg-[#F7F7F5]/50 rounded-[4px] scale-100 active:scale-[0.98] transition-all">
           <span class="material-symbols-outlined text-[20px]">folder</span>
