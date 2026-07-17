@@ -2,7 +2,7 @@ import axios from "axios";
 import { useAuthStore } from "@/features/auth/store/auth.js";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080/api", // URL temporal
+  baseURL: "http://localhost:8080/api/v1",
   timeout: 10000,
   withCredentials: true, // Fundamental para que las cookies seguras (Refresh Token) viajen al servidor
 });
