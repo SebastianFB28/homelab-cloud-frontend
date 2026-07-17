@@ -34,7 +34,7 @@ const { displayText: descText, isTyping: descTyping } = useTypewriter(
 
         <div class="flex gap-4">
           <RouterLink 
-            to="/login" 
+            to="/register" 
             class="px-6 py-3 bg-black text-white rounded-lg font-semibold hover:bg-neutral-800 transition-all-custom btn-scale"
           >
             Regístrate Ya
