@@ -1,61 +1,113 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { filesService } from '../api/filesService.js';
 
 export const useFilesStore = defineStore('files', () => {
-  const currentPath = ref('/'); 
-  const items = ref([]); 
-  const isLoading = ref(false); 
+  const currentPath = ref('My Drive');
+  const currentFolderId = ref(null);
+  const folderHistory = ref([]);
+  const items = ref([]);
+  const isLoading = ref(false);
+  const isMutating = ref(false);
+  const error = ref(null);
 
   const foldersOnly = computed(() => items.value.filter(item => item.type === 'folder'));
   const filesOnly = computed(() => items.value.filter(item => item.type === 'file'));
 
-  // Propiedad computada para saber si podemos ir hacia atrás
-  const canGoBack = computed(() => currentPath.value !== '/');
+  const canGoBack = computed(() => folderHistory.value.length > 0);
 
-  const fetchItems = async (path = '/') => {
+  const loadDirectory = async (folderId, folderName) => {
     isLoading.value = true;
-    currentPath.value = path;
+    error.value = null;
+    currentFolderId.value = folderId;
+    currentPath.value = folderName;
 
-    // SIMULACIÓN: Diferentes datos dependiendo de la ruta
-    setTimeout(() => {
-      if (path === '/') {
-        items.value = [
-          { id: 'f1', name: 'Documents', type: 'folder', path: '/Documents', modified: '2 days ago', size: '--' },
-          { id: 'f2', name: 'Photos', type: 'folder', path: '/Photos', modified: '1 week ago', size: '--' },
-          { id: 'a1', name: 'Presentation.pdf', type: 'file', extension: 'pdf', modified: '2h ago', size: '4.2 MB' }
-        ];
-      } else if (path === '/Documents') {
-        items.value = [
-          { id: 'a2', name: 'Factura_Luz.pdf', type: 'file', extension: 'pdf', modified: '1 day ago', size: '1.1 MB' },
-          { id: 'a3', name: 'Presupuesto.pdf', type: 'file', extension: 'pdf', modified: '3 days ago', size: '2.4 MB' }
-        ];
-      } else if (path === '/Photos') {
-        items.value = [
-          { id: 'a4', name: 'Vacaciones.jpg', type: 'file', extension: 'jpg', modified: '10 days ago', size: '5.4 MB' }
-        ];
-      }
-      
+    try {
+      const directoryContent = await filesService.listDirectory(folderId);
+      items.value = directoryContent.map((item) => ({
+        id: item.id,
+        name: item.name,
+        type: item.folder ? 'folder' : 'file',
+        extension: item.folder ? null : item.name.split('.').pop().toLowerCase(),
+        modified: item.createdAt,
+        size: item.folder ? '--' : item.sizeInBytes,
+        parentFolderId: item.parentFolderId,
+        ownerId: item.ownerId,
+        mimeType: item.mimeType,
+        physicalPath: item.physicalPath,
+        folder: item.folder,
+      }));
+    } catch (err) {
+      console.error('Error cargando directorio:', err);
+      items.value = [];
+      error.value = 'No se pudo cargar el contenido de esta carpeta.';
+    } finally {
       isLoading.value = false;
-    }, 600); // 600ms de "carga"
+    }
   };
 
-  // Función para subir un nivel en las carpetas
+  const loadRoot = () => {
+    folderHistory.value = [];
+    return loadDirectory(null, 'My Drive');
+  };
+
+  const openFolder = (folder) => {
+    folderHistory.value.push({
+      id: currentFolderId.value,
+      name: currentPath.value
+    });
+    return loadDirectory(folder.id, folder.name);
+  };
+
   const goBack = () => {
-    // Si estamos en /Documents, el padre es /
-    // Para simplificar ahora, si no es la raíz, volvemos a la raíz.
-    if (currentPath.value !== '/') {
-      fetchItems('/');
+    const parent = folderHistory.value.pop();
+    if (parent) {
+      return loadDirectory(parent.id, parent.name);
+    }
+  };
+
+  const refreshCurrentDirectory = () => loadDirectory(currentFolderId.value, currentPath.value);
+
+  const createFolder = async (name) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error('El nombre de la carpeta es obligatorio.');
+
+    isMutating.value = true;
+    try {
+      await filesService.createFolder(trimmedName, currentFolderId.value);
+      await refreshCurrentDirectory();
+    } finally {
+      isMutating.value = false;
+    }
+  };
+
+  const uploadFile = async (file) => {
+    if (!file) throw new Error('Selecciona un archivo para subir.');
+
+    isMutating.value = true;
+    try {
+      await filesService.uploadFile(file, currentFolderId.value);
+      await refreshCurrentDirectory();
+    } finally {
+      isMutating.value = false;
     }
   };
 
   return {
     currentPath,
+    currentFolderId,
     items,
     isLoading,
+    isMutating,
+    error,
     canGoBack,
     foldersOnly,
     filesOnly,
-    fetchItems,
-    goBack
+    loadRoot,
+    refreshCurrentDirectory,
+    openFolder,
+    goBack,
+    createFolder,
+    uploadFile
   };
 });

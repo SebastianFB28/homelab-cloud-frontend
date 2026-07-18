@@ -11,11 +11,22 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore();
+    
+    // 1. Intentamos sacar el token de Pinia (memoria)
+    let token = authStore.accessToken;
 
-    // Sacamos el token directamente de Pinia (en memoria, más seguro)
-    if (authStore.accessToken) {
-      config.headers.Authorization = `Bearer ${authStore.accessToken}`;
+    // 2. Si Pinia está vacío (porque se hizo F5), lo buscamos en localStorage
+    if (!token) {
+      token = localStorage.getItem('token');
+      // Opcional: Si lo encontramos en localStorage, lo volvemos a meter a Pinia
+      if (token) authStore.accessToken = token; 
     }
+
+    // 3. Si hay token de alguna de las dos fuentes, lo inyectamos
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
     return config;
   },
   (error) => Promise.reject(error),
