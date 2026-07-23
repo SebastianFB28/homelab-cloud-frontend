@@ -1,7 +1,3 @@
-<script setup>
-// Lógica del footer si fuera necesaria a futuro
-</script>
-
 <template>
   <footer class="bg-white border-t border-surface-variant w-full py-12 mt-24">
     <div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-6">

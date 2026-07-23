@@ -17,13 +17,18 @@ export const filesService = {
     return response.data;
   },
 
-  async uploadFile(file, parentFolderId = null) {
+  async uploadFile(file, parentFolderId = null, onUploadProgress, signal) {
     const formData = new FormData();
     formData.append('file', file, file.name);
     if (parentFolderId) formData.append('parentFolderId', parentFolderId);
 
     // Axios añade el boundary multipart automáticamente.
-    const response = await api.post('/storage/files/upload', formData);
+    const response = await api.post('/storage/files/upload', formData, {
+      // Las cargas grandes no deben expirar aunque cambie el timeout global.
+      timeout: 0,
+      onUploadProgress,
+      signal
+    });
     return response.data;
   },
 

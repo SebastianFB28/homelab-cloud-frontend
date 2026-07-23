@@ -81,15 +81,15 @@ export const useFilesStore = defineStore('files', () => {
     }
   };
 
-  const uploadFile = async (file) => {
+  const uploadFile = async (file, onUploadProgress, signal) => {
     if (!file) throw new Error('Selecciona un archivo para subir.');
 
-    isMutating.value = true;
-    try {
-      await filesService.uploadFile(file, currentFolderId.value);
+    const parentFolderId = currentFolderId.value;
+    await filesService.uploadFile(file, parentFolderId, onUploadProgress, signal);
+
+    // No recargamos otra carpeta si el usuario navegó mientras se subía el archivo.
+    if (currentFolderId.value === parentFolderId) {
       await refreshCurrentDirectory();
-    } finally {
-      isMutating.value = false;
     }
   };
 

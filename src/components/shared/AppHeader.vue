@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 
+// Cambia esta ruta por tu imagen. Para archivos en `public`, usa por ejemplo `/images/mi-logo.png`.
+const headerLogoSrc = '/src/assets/logo.png';
+
 // Variable reactiva para saber en qué sección estamos
 const activeSection = ref('');
 
@@ -39,7 +42,7 @@ onMounted(() => {
     <div class="flex justify-between items-center max-w-7xl mx-auto px-6 h-16">
       
       <RouterLink to="/" class="text-lg font-bold text-primary flex items-center gap-2" @click="closeMobileMenu">
-        <span class="material-symbols-outlined text-primary" data-icon="dns">dns</span>
+        <img :src="headerLogoSrc" alt="Homelab Server" class="h-7 w-7 object-contain" />
         Homelab Server
       </RouterLink>
 
