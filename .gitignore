@@ -35,3 +35,6 @@ cypress/screenshots/
 *.njsproj
 *.sln
 *.sw?
+
+# archivos de produccion 
+.env.production
