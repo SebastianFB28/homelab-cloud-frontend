@@ -44,6 +44,11 @@ const router = createRouter({
       path: '/files',
       name: 'files',
       component: () => import('@/features/files/views/FilesExplorerView.vue')
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/features/admin/views/AdminDashboard.vue')
     }
   ],
   scrollBehavior(to, from, savedPosition) {

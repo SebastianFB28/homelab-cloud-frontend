@@ -23,8 +23,11 @@ const handleLogin = async () => {
     // Si llega aquí, es un 200 OK. Guardamos el token.
     authStore.setToken(response.token);
     
-    // Lo mandamos al dashboard
-    router.push('/dashboard');
+    if (authStore.isAdmin) {
+          router.push('/admin');
+       } else {
+        router.push('/dashboard');
+      }
     
   } catch (error) {
     // Quitamos la pantalla de carga para mostrar el error
