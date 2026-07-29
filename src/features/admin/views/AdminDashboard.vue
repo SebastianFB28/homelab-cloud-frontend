@@ -1,15 +1,29 @@
 <script setup>
-import { useAuthStore } from '@/features/auth/store/auth.js';
-
-const authStore = useAuthStore();
+import AdminLayout from '../components/AdminLayout.vue';
+import AdminUserStats from '../components/AdminUserStats.vue';
+import AdminStorageOverview from '../components/AdminStorageOverview.vue';
+import AdminSystemHealth from '../components/AdminSystemHealth.vue';
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-    <div class="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center">
-      <span class="material-symbols-outlined !text-[48px] text-blue-600 mb-4">admin_panel_settings</span>
-      <h1 class="text-2xl font-bold mb-2">Panel de Administración</h1>
-      <p class="text-gray-600">Bienvenido, tu rol es: <span class="font-bold">{{ authStore.role }}</span></p>
+  <AdminLayout>
+    <div class="max-w-[1100px] mx-auto py-12 px-8">
+      
+      <div class="mb-10">
+        <h1 class="font-h1 text-[40px] font-bold tracking-tight text-[#21201a]">Dashboard Overview</h1>
+        <p class="text-[#49473f] mt-2">Bienvenido al panel de control principal del servidor.</p>
+      </div>
+
+      <!-- Componente 1: Estadísticas de Usuarios según Enums -->
+      <AdminUserStats />
+
+      <!-- Componente 2: Vista Global de Almacenamiento -->
+      <AdminStorageOverview />
+
+      <!-- Componente 3: Salud del Sistema (Reemplazo de la tabla en esta vista) -->
+      <h3 class="text-[18px] font-bold text-[#21201a] mb-4">System Resources</h3>
+      <AdminSystemHealth />
+
     </div>
-  </div>
+  </AdminLayout>
 </template>
