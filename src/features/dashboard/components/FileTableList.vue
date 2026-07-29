@@ -3,10 +3,12 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useFilesStore } from '@/features/files/store/filesStore.js';
 import { filesService } from '@/features/files/api/filesService.js';
 import FeatureUnavailableModal from '@/components/shared/FeatureUnavailableModal.vue';
+import DownloadProgressPanel from '@/features/files/components/DownloadProgressPanel.vue';
 
 const filesStore = useFilesStore();
 const openMenuId = ref(null);
-const downloadingId = ref(null);
+const downloads = ref([]);
+const downloadControllers = new Map();
 const actionError = ref('');
 const showFeatureModal = ref(false);
 const unavailableFeature = ref('');
@@ -18,6 +20,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('click', closeMenu);
+  downloadControllers.forEach((controller) => controller.abort());
 });
 
 const getIconProps = (item) => {
@@ -79,14 +82,56 @@ const getDownloadName = (contentDisposition, fallbackName) => {
   return quotedMatch?.[1] || fallbackName;
 };
 
+const getDownloadId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+
+const removeDownload = (downloadId) => {
+  downloadControllers.delete(downloadId);
+  downloads.value = downloads.value.filter((download) => download.id !== downloadId);
+};
+
+const cancelDownload = (downloadId) => {
+  const download = downloads.value.find((item) => item.id === downloadId);
+  const controller = downloadControllers.get(downloadId);
+  if (!download || !controller || download.status !== 'downloading') return;
+
+  download.status = 'cancelled';
+  controller.abort();
+  downloadControllers.delete(downloadId);
+};
+
 const downloadFile = async (item) => {
-  if (item.type === 'folder' || downloadingId.value) return;
+  if (item.type === 'folder') return;
 
   actionError.value = '';
-  downloadingId.value = item.id;
   openMenuId.value = null;
+  const download = {
+    id: getDownloadId(),
+    name: item.name,
+    icon: getIconProps(item).name,
+    progress: 0,
+    status: 'downloading',
+    error: ''
+  };
+  const controller = new AbortController();
+  downloads.value.push(download);
+  downloadControllers.set(download.id, controller);
+
   try {
-    const { blob, contentDisposition } = await filesService.downloadFile(item.id);
+    const { blob, contentDisposition } = await filesService.downloadFile(item.id, (event) => {
+      const currentDownload = downloads.value.find((entry) => entry.id === download.id);
+      if (!currentDownload) return;
+
+      // Algunos servidores no envían Content-Length; en ese caso mantenemos el estado
+      // de descarga sin inventar un porcentaje.
+      currentDownload.progress = event.total
+        ? Math.min(100, Math.round((event.loaded * 100) / event.total))
+        : null;
+    }, controller.signal);
+
+    const currentDownload = downloads.value.find((entry) => entry.id === download.id);
+    downloadControllers.delete(download.id);
+    if (!currentDownload || currentDownload.status !== 'downloading') return;
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -95,11 +140,19 @@ const downloadFile = async (item) => {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+    currentDownload.progress = 100;
+    currentDownload.status = 'completed';
+    window.setTimeout(() => removeDownload(download.id), 4000);
   } catch (error) {
     console.error('Error descargando archivo:', error);
-    actionError.value = `No se pudo descargar “${item.name}”.`;
-  } finally {
-    downloadingId.value = null;
+    const currentDownload = downloads.value.find((entry) => entry.id === download.id);
+    if (!currentDownload) return;
+
+    downloadControllers.delete(download.id);
+    if (currentDownload.status === 'cancelled' || controller.signal.aborted) return;
+
+    currentDownload.status = 'error';
+    currentDownload.error = error.response?.data?.message || error.message || 'No se pudo descargar el archivo.';
   }
 };
 
@@ -179,9 +232,8 @@ const formatDate = (date) => {
             <div v-if="item.type === 'file'" class="relative flex justify-end gap-1">
               <button
                 type="button"
-                :disabled="downloadingId === item.id"
                 @click.stop="downloadFile(item)"
-                class="rounded-md p-1 hover:bg-[#EDEDED] disabled:cursor-wait disabled:opacity-50"
+                class="rounded-md p-1 hover:bg-[#EDEDED]"
                 title="Descargar"
                 aria-label="Descargar archivo"
               >
@@ -229,5 +281,6 @@ const formatDate = (date) => {
     </div>
 
     <FeatureUnavailableModal v-if="showFeatureModal" :feature="unavailableFeature" @close="showFeatureModal = false" />
+    <DownloadProgressPanel :downloads="downloads" @cancel="cancelDownload" @remove="removeDownload" />
   </section>
 </template>

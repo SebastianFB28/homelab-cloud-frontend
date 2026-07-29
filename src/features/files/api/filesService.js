@@ -32,9 +32,13 @@ export const filesService = {
     return response.data;
   },
 
-  async downloadFile(fileId) {
+  async downloadFile(fileId, onDownloadProgress, signal) {
     const response = await api.get(`/storage/files/${fileId}/download`, {
-      responseType: 'blob'
+      responseType: 'blob',
+      // Las descargas grandes no deben expirar aunque cambie el timeout global.
+      timeout: 0,
+      onDownloadProgress,
+      signal
     });
     return {
       blob: response.data,

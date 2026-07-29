@@ -8,28 +8,37 @@ const api = axios.create({
 });
 
 // Interceptor de Peticiones
-api.interceptors.request.use(
-  (config) => {
-    const authStore = useAuthStore();
-    
-    // 1. Intentamos sacar el token de Pinia (memoria)
-    let token = authStore.accessToken;
+api.interceptors.request.use((config) => {
+  const publicEndpoints = [
+    "/auth/login",
+    "/auth/register",
+  ];
 
-    // 2. Si Pinia está vacío (porque se hizo F5), lo buscamos en localStorage
-    if (!token) {
-      token = localStorage.getItem('token');
-      // Opcional: Si lo encontramos en localStorage, lo volvemos a meter a Pinia
-      if (token) authStore.accessToken = token; 
-    }
+  const isPublic = publicEndpoints.some(endpoint =>
+    config.url?.endsWith(endpoint)
+  );
 
-    // 3. Si hay token de alguna de las dos fuentes, lo inyectamos
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
+  if (isPublic) {
     return config;
-  },
-  (error) => Promise.reject(error),
-);
+  }
+
+  const authStore = useAuthStore();
+
+  let token = authStore.accessToken;
+
+  if (!token) {
+    token = localStorage.getItem("token");
+
+    if (token) {
+      authStore.accessToken = token;
+    }
+  }
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
 
 export default api;
