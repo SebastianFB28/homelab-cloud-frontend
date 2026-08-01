@@ -34,11 +34,36 @@ api.interceptors.request.use((config) => {
     }
   }
 
+  config.headers = config.headers || {};
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    delete config.headers.Authorization;
   }
+
+  console.log('[axiosInstance] request ->', {
+    url: config.url,
+    method: config.method,
+    hasToken: !!token,
+    authHeader: config.headers.Authorization || null
+  });
 
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('[axiosInstance] response error ->', {
+      url: error.config?.url,
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers
+    });
+
+    return Promise.reject(error);
+  }
+);
 
 export default api;

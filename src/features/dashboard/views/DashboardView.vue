@@ -24,9 +24,6 @@ const authStore = useAuthStore();
         </div>
       </section>
 
-        <code class="bg-gray-200 px-4 py-2 rounded text-sm break-all max-w-lg text-center">
-          Token JWT: {{ authStore.accessToken?.substring(0, 40) }}...
-        </code>
 
       <FileTableList />
     </div>

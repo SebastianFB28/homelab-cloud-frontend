@@ -49,6 +49,11 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('@/features/admin/views/AdminDashboard.vue')
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('@/features/admin/views/AdminDashboard.vue')
     }
   ],
   scrollBehavior(to, from, savedPosition) {
