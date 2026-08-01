@@ -30,7 +30,7 @@ export const userService = {
   // Descargar el avatar y convertirlo a una URL visualizable
   async getAvatarUrl() {
     // Evita que el navegador devuelva una versión anterior desde caché después de subir otra imagen.
-    const response = await api.get('/storage/get-avatar', {
+    const response = await api.get('/files/get-avatar', {
       params: { _: Date.now() },
       responseType: 'blob' // Fundamental para recibir archivos binarios
     });

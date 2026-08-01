@@ -2,8 +2,10 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useFilesStore } from '@/features/files/store/filesStore.js';
 import { filesService } from '@/features/files/api/filesService.js';
+import { streamingService } from '@/features/streaming/api/streamingService.js';
 import FeatureUnavailableModal from '@/components/shared/FeatureUnavailableModal.vue';
 import DownloadProgressPanel from '@/features/files/components/DownloadProgressPanel.vue';
+import VideoPreviewModal from '@/features/streaming/components/VideoPreviewModal.vue';
 
 const filesStore = useFilesStore();
 const openMenuId = ref(null);
@@ -12,6 +14,12 @@ const downloadControllers = new Map();
 const actionError = ref('');
 const showFeatureModal = ref(false);
 const unavailableFeature = ref('');
+const showVideoModal = ref(false);
+const currentVideoUrl = ref('');
+const currentVideoName = ref('');
+const currentVideoMimeType = ref('video/mp4');
+const currentVideoLoading = ref(false);
+const currentVideoError = ref('');
 
 onMounted(() => {
   filesStore.loadRoot();
@@ -21,6 +29,9 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('click', closeMenu);
   downloadControllers.forEach((controller) => controller.abort());
+  if (currentVideoUrl.value) {
+    currentVideoUrl.value = '';
+  }
 });
 
 const getIconProps = (item) => {
@@ -42,6 +53,8 @@ const getIconProps = (item) => {
 const handleRowClick = (item) => {
   if (item.type === 'folder') {
     filesStore.openFolder(item);
+  } else if (item.mimeType?.startsWith('video/')) {
+    openVideoPreview(item);
   } else {
     console.log('Abriendo archivo:', item.name);
   }
@@ -61,6 +74,49 @@ const showUnavailableFeature = (feature) => {
   showFeatureModal.value = true;
 };
 
+const openVideoPreview = async (item) => {
+  openMenuId.value = null;
+  showVideoModal.value = true;
+  currentVideoName.value = item.name;
+  currentVideoError.value = '';
+  currentVideoLoading.value = true;
+
+  if (currentVideoUrl.value) {
+    URL.revokeObjectURL(currentVideoUrl.value);
+    currentVideoUrl.value = '';
+  }
+
+  const controller = new AbortController();
+  const signal = controller.signal;
+
+  try {
+    const { blob } = await filesService.downloadFile(item.id, undefined, signal);
+    if (!blob || !blob.size) {
+      throw new Error('El archivo de video está vacío o no es válido.');
+    }
+    if (blob.type && !blob.type.startsWith('video/')) {
+      throw new Error('El archivo no es un video válido.');
+    }
+    currentVideoUrl.value = URL.createObjectURL(blob);
+  } catch (error) {
+    if (signal.aborted) return;
+    console.error('Error cargando el video:', error);
+    currentVideoError.value = error.response?.data?.message || error.message || 'No se pudo cargar el video.';
+  } finally {
+    currentVideoLoading.value = false;
+  }
+};
+
+const closeVideoPreview = () => {
+  showVideoModal.value = false;
+  currentVideoLoading.value = false;
+  currentVideoError.value = '';
+  if (currentVideoUrl.value?.startsWith?.('blob:')) {
+    URL.revokeObjectURL(currentVideoUrl.value);
+  }
+  currentVideoUrl.value = '';
+};
+
 const isPreviewable = (item) => {
   if (item.type !== 'file') return false;
   return item.mimeType?.startsWith('image/')
@@ -69,8 +125,10 @@ const isPreviewable = (item) => {
 };
 
 const handleDoubleClick = (item) => {
-  if (isPreviewable(item)) {
-    showUnavailableFeature('La vista previa de imágenes y videos');
+  if (item.type === 'file' && item.mimeType?.startsWith('video/')) {
+    openVideoPreview(item);
+  } else if (item.type === 'file' && item.mimeType?.startsWith('image/')) {
+    showUnavailableFeature('La vista previa de imágenes');
   }
 };
 
@@ -193,7 +251,7 @@ const formatDate = (date) => {
       </div>
     </div>
     
-    <div class="bg-white border border-[#EDEDED] rounded-lg overflow-hidden">
+    <div class="bg-white border border-[#EDEDED] rounded-lg overflow-visible min-h-[320px] sm:min-h-[420px] lg:min-h-[480px]">
       <div class="grid grid-cols-12 px-6 py-3 border-b border-[#EDEDED] text-[12px] font-semibold tracking-widest text-[#49473f]">
         <div class="col-span-6">NAME</div>
         <div class="col-span-3">MODIFIED</div>
@@ -231,6 +289,16 @@ const formatDate = (date) => {
           <div class="col-span-1 text-right">
             <div v-if="item.type === 'file'" class="relative flex justify-end gap-1">
               <button
+                v-if="item.mimeType?.startsWith('video/')"
+                type="button"
+                @click.stop="openVideoPreview(item)"
+                class="rounded-md p-1 hover:bg-[#EDEDED]"
+                title="Vista previa"
+                aria-label="Vista previa de video"
+              >
+                <span class="material-symbols-outlined block text-[18px] text-[#37352F]/50 group-hover:text-[#21201a]">play_circle</span>
+              </button>
+              <button
                 type="button"
                 @click.stop="downloadFile(item)"
                 class="rounded-md p-1 hover:bg-[#EDEDED]"
@@ -248,10 +316,19 @@ const formatDate = (date) => {
               >
                 <span class="material-symbols-outlined block text-[18px] text-[#37352F]/30 transition-colors group-hover:text-[#21201a]">more_horiz</span>
               </button>
-              <div v-if="openMenuId === item.id" @click.stop class="absolute right-0 top-8 z-20 w-40 rounded-lg border border-[#EDEDED] bg-white py-1 shadow-lg">
+              <div v-if="openMenuId === item.id" @click.stop class="absolute right-0 top-full z-20 mt-2 w-40 rounded-lg border border-[#EDEDED] bg-white py-1 shadow-lg">
                 <button type="button" @click="downloadFile(item)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]">
                   <span class="material-symbols-outlined text-[18px]">download</span>
                   Descargar
+                </button>
+                <button
+                  v-if="item.mimeType?.startsWith('video/')"
+                  type="button"
+                  @click="openVideoPreview(item)"
+                  class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]"
+                >
+                  <span class="material-symbols-outlined text-[18px]">play_circle</span>
+                  Previsualizar
                 </button>
                 <button type="button" @click="showUnavailableFeature('Renombrar archivos')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]">
                   <span class="material-symbols-outlined text-[18px]">drive_file_rename_outline</span>
@@ -281,6 +358,17 @@ const formatDate = (date) => {
     </div>
 
     <FeatureUnavailableModal v-if="showFeatureModal" :feature="unavailableFeature" @close="showFeatureModal = false" />
+    <VideoPreviewModal
+      v-if="showVideoModal"
+      :video-url="currentVideoUrl"
+      :mime-type="currentVideoMimeType"
+      :title="currentVideoName"
+      :loading="currentVideoLoading"
+      :error="currentVideoError"
+      @close="closeVideoPreview"
+      @loaded="currentVideoLoading = false"
+      @video-error="currentVideoError = 'No se pudo cargar el video. Revisa permisos o inténtalo de nuevo.'"
+    />
     <DownloadProgressPanel :downloads="downloads" @cancel="cancelDownload" @remove="removeDownload" />
   </section>
 </template>

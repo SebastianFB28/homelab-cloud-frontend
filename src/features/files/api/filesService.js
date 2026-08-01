@@ -5,7 +5,7 @@ export const filesService = {
     const params = {};
     if (folderId) params.folderId = folderId;
 
-    const response = await api.get('/storage/list', { params });
+    const response = await api.get('/files/list', { params });
     return response.data;
   },
 
@@ -33,7 +33,7 @@ export const filesService = {
   },
 
   async downloadFile(fileId, onDownloadProgress, signal) {
-    const response = await api.get(`/storage/files/${fileId}/download`, {
+    const response = await api.get(`/files/${fileId}/download`, {
       responseType: 'blob',
       // Las descargas grandes no deben expirar aunque cambie el timeout global.
       timeout: 0,
@@ -43,6 +43,18 @@ export const filesService = {
     return {
       blob: response.data,
       contentDisposition: response.headers['content-disposition']
+    };
+  },
+
+  async streamFile(fileId, signal) {
+    const response = await api.get(`/files/${fileId}/stream`, {
+      responseType: 'blob',
+      timeout: 0,
+      signal
+    });
+    return {
+      blob: response.data,
+      mimeType: response.headers['content-type']
     };
   }
 };
