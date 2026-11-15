@@ -13,68 +13,54 @@ const emit = defineEmits(['close', 'loaded', 'video-error']);
 const videoRef = ref(null);
 
 watch(() => props.videoUrl, (newUrl) => {
-  if (!newUrl && videoRef.value) {
-    videoRef.value.pause();
-  }
+  if (!newUrl && videoRef.value) videoRef.value.pause();
 });
 
-onUnmounted(() => {
-  if (videoRef.value) {
-    videoRef.value.pause();
-  }
-});
+onUnmounted(() => videoRef.value?.pause());
 </script>
 
 <template>
-  <div class="fixed inset-0 z-[200] flex items-center justify-center bg-[#21201a]/80 p-4 backdrop-blur-sm" @click.self="emit('close')">
-    <section class="relative w-full max-w-[1300px] max-h-[calc(100vh-48px)] rounded-[28px] border border-[#e5e7eb] bg-white shadow-[0_35px_120px_rgba(0,0,0,0.15)] overflow-hidden">
+  <div class="fixed inset-0 z-[200] flex flex-col bg-[#202124]/95 backdrop-blur-sm">
+    <!-- Barra superior estilo Drive -->
+    <header class="flex h-16 shrink-0 items-center gap-3 px-4 text-white">
       <button
         type="button"
         aria-label="Cerrar vista previa"
         @click="emit('close')"
-        class="absolute right-5 top-5 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#1f2937] shadow-sm transition hover:bg-slate-100"
+        class="inline-flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white/10"
       >
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
+      <span class="material-symbols-outlined text-red-400">movie</span>
+      <h2 class="truncate text-base font-medium">{{ title }}</h2>
+    </header>
 
-      <div class="border-b border-[#e5e7eb] px-8 py-6">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#2563eb]">Video preview</p>
-            <h2 class="mt-3 text-2xl font-semibold text-[#111827] truncate">{{ title }}</h2>
-          </div>
-          <div class="text-sm text-[#6b7280]">Reproducción segura y en alta calidad.</div>
-        </div>
+    <!-- Área del video: click fuera del video cierra -->
+    <main class="flex min-h-0 flex-1 items-center justify-center px-4 pb-4" @click.self="emit('close')">
+      <div v-if="props.loading" class="flex items-center text-white/80">
+        <span class="material-symbols-outlined animate-spin text-4xl">sync</span>
+        <span class="ml-3 text-lg">Cargando video…</span>
       </div>
 
-      <div class="p-8">
-        <div v-if="props.loading" class="flex min-h-[420px] items-center justify-center rounded-[24px] border border-dashed border-[#d1d5db] bg-[#f8fafc] text-[#475569]">
-          <span class="material-symbols-outlined animate-spin text-4xl">sync</span>
-          <span class="ml-4 text-lg font-medium">Cargando video…</span>
-        </div>
-
-        <div v-else-if="props.error" class="rounded-[24px] border border-red-100 bg-red-50 p-12 text-center text-red-700">
-          <span class="material-symbols-outlined text-5xl">error</span>
-          <p class="mt-4 text-base">{{ props.error }}</p>
-        </div>
-
-        <div v-else class="overflow-hidden rounded-[24px] border border-[#d1d5db] bg-black">
-          <video
-            ref="videoRef"
-            class="w-full h-[calc(100vh-280px)] bg-black"
-            controls
-            autoplay
-            muted
-            playsinline
-            @loadedmetadata="emit('loaded')"
-            @error="emit('video-error')"
-            crossorigin="use-credentials"
-          >
-            <source :src="props.videoUrl" :type="props.mimeType || 'video/mp4'" />
-            Tu navegador no soporta reproducción de video.
-          </video>
-        </div>
+      <div v-else-if="props.error" class="flex flex-col items-center text-center text-red-300">
+        <span class="material-symbols-outlined text-5xl">error</span>
+        <p class="mt-3">{{ props.error }}</p>
       </div>
-    </section>
+
+      <video
+        v-else
+        ref="videoRef"
+        :key="props.videoUrl"
+        :src="props.videoUrl"
+        class="max-h-[calc(100vh-80px)] max-w-full rounded-md bg-black shadow-2xl outline-none"
+        controls
+        playsinline
+        preload="metadata"
+        @loadedmetadata="emit('loaded')"
+        @error="emit('video-error')"
+      >
+        Tu navegador no soporta reproducción de video.
+      </video>
+    </main>
   </div>
 </template>

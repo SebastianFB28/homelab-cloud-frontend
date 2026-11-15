@@ -6,6 +6,7 @@ import { streamingService } from '@/features/streaming/api/streamingService.js';
 import FeatureUnavailableModal from '@/components/shared/FeatureUnavailableModal.vue';
 import DownloadProgressPanel from '@/features/files/components/DownloadProgressPanel.vue';
 import VideoPreviewModal from '@/features/streaming/components/VideoPreviewModal.vue';
+import RenameItemModal from '@/features/files/components/RenameItemModal.vue';
 
 const filesStore = useFilesStore();
 const openMenuId = ref(null);
@@ -20,6 +21,13 @@ const currentVideoName = ref('');
 const currentVideoMimeType = ref('video/mp4');
 const currentVideoLoading = ref(false);
 const currentVideoError = ref('');
+const showRenameModal = ref(false);
+const renameTarget = ref(null);
+const renameError = ref('');
+const isRenaming = ref(false);
+// Identificador para descartar respuestas de peticiones de streaming ya obsoletas
+// (p. ej. si el usuario abre otro video antes de recibir el token anterior).
+let videoRequestId = 0;
 
 onMounted(() => {
   filesStore.loadRoot();
@@ -29,9 +37,9 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('click', closeMenu);
   downloadControllers.forEach((controller) => controller.abort());
-  if (currentVideoUrl.value) {
-    currentVideoUrl.value = '';
-  }
+  // Invalida cualquier petición de token de streaming en vuelo.
+  videoRequestId += 1;
+  currentVideoUrl.value = '';
 });
 
 const getIconProps = (item) => {
@@ -74,46 +82,67 @@ const showUnavailableFeature = (feature) => {
   showFeatureModal.value = true;
 };
 
+const openRenameModal = (item) => {
+  openMenuId.value = null;
+  renameTarget.value = item;
+  renameError.value = '';
+  showRenameModal.value = true;
+};
+
+const closeRenameModal = () => {
+  showRenameModal.value = false;
+  renameError.value = '';
+  renameTarget.value = null;
+};
+
+const handleRenameSubmit = async ({ id, newName, isFolder }) => {
+  const target = filesStore.items.find((item) => item.id === id);
+  if (!target) return;
+
+  isRenaming.value = true;
+  renameError.value = '';
+
+  try {
+    await filesStore.renameItem(target, newName);
+    closeRenameModal();
+  } catch (error) {
+    renameError.value = error.response?.data?.message || error.message || 'No se pudo renombrar el elemento.';
+  } finally {
+    isRenaming.value = false;
+  }
+};
+
 const openVideoPreview = async (item) => {
   openMenuId.value = null;
   showVideoModal.value = true;
   currentVideoName.value = item.name;
+  currentVideoMimeType.value = item.mimeType || 'video/mp4';
+  currentVideoUrl.value = '';
   currentVideoError.value = '';
   currentVideoLoading.value = true;
 
-  if (currentVideoUrl.value) {
-    URL.revokeObjectURL(currentVideoUrl.value);
-    currentVideoUrl.value = '';
-  }
-
-  const controller = new AbortController();
-  const signal = controller.signal;
+  const requestId = ++videoRequestId;
 
   try {
-    const { blob } = await filesService.downloadFile(item.id, undefined, signal);
-    if (!blob || !blob.size) {
-      throw new Error('El archivo de video está vacío o no es válido.');
-    }
-    if (blob.type && !blob.type.startsWith('video/')) {
-      throw new Error('El archivo no es un video válido.');
-    }
-    currentVideoUrl.value = URL.createObjectURL(blob);
+    // 1) Token de streaming (petición autenticada) + URL pública del stream.
+    const url = await streamingService.getStreamUrl(item.id);
+    if (requestId !== videoRequestId) return; // se abrió otro video mientras tanto
+    currentVideoUrl.value = url;
   } catch (error) {
-    if (signal.aborted) return;
-    console.error('Error cargando el video:', error);
+    if (requestId !== videoRequestId) return;
+    console.error('Error obteniendo el stream del video:', error);
     currentVideoError.value = error.response?.data?.message || error.message || 'No se pudo cargar el video.';
   } finally {
-    currentVideoLoading.value = false;
+    if (requestId === videoRequestId) currentVideoLoading.value = false;
   }
 };
 
 const closeVideoPreview = () => {
+  // Invalida cualquier petición de token en vuelo.
+  videoRequestId += 1;
   showVideoModal.value = false;
   currentVideoLoading.value = false;
   currentVideoError.value = '';
-  if (currentVideoUrl.value?.startsWith?.('blob:')) {
-    URL.revokeObjectURL(currentVideoUrl.value);
-  }
   currentVideoUrl.value = '';
 };
 
@@ -287,9 +316,9 @@ const formatDate = (date) => {
           <div class="col-span-2 text-[14px] text-[#49473f]">{{ item.type === 'folder' ? '--' : formatFileSize(item.size) }}</div>
           
           <div class="col-span-1 text-right">
-            <div v-if="item.type === 'file'" class="relative flex justify-end gap-1">
+            <div class="relative flex justify-end gap-1">
               <button
-                v-if="item.mimeType?.startsWith('video/')"
+                v-if="item.type === 'file' && item.mimeType?.startsWith('video/')"
                 type="button"
                 @click.stop="openVideoPreview(item)"
                 class="rounded-md p-1 hover:bg-[#EDEDED]"
@@ -299,6 +328,7 @@ const formatDate = (date) => {
                 <span class="material-symbols-outlined block text-[18px] text-[#37352F]/50 group-hover:text-[#21201a]">play_circle</span>
               </button>
               <button
+                v-if="item.type === 'file'"
                 type="button"
                 @click.stop="downloadFile(item)"
                 class="rounded-md p-1 hover:bg-[#EDEDED]"
@@ -317,12 +347,17 @@ const formatDate = (date) => {
                 <span class="material-symbols-outlined block text-[18px] text-[#37352F]/30 transition-colors group-hover:text-[#21201a]">more_horiz</span>
               </button>
               <div v-if="openMenuId === item.id" @click.stop class="absolute right-0 top-full z-20 mt-2 w-40 rounded-lg border border-[#EDEDED] bg-white py-1 shadow-lg">
-                <button type="button" @click="downloadFile(item)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]">
+                <button
+                  v-if="item.type === 'file'"
+                  type="button"
+                  @click="downloadFile(item)"
+                  class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]"
+                >
                   <span class="material-symbols-outlined text-[18px]">download</span>
                   Descargar
                 </button>
                 <button
-                  v-if="item.mimeType?.startsWith('video/')"
+                  v-if="item.type === 'file' && item.mimeType?.startsWith('video/')"
                   type="button"
                   @click="openVideoPreview(item)"
                   class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]"
@@ -330,11 +365,11 @@ const formatDate = (date) => {
                   <span class="material-symbols-outlined text-[18px]">play_circle</span>
                   Previsualizar
                 </button>
-                <button type="button" @click="showUnavailableFeature('Renombrar archivos')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]">
+                <button type="button" @click="openRenameModal(item)" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#F7F7F5]">
                   <span class="material-symbols-outlined text-[18px]">drive_file_rename_outline</span>
                   Renombrar
                 </button>
-                <button type="button" @click="showUnavailableFeature('Eliminar archivos')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50">
+                <button v-if="item.type === 'file'" type="button" @click="showUnavailableFeature('Eliminar archivos')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50">
                   <span class="material-symbols-outlined text-[18px]">delete</span>
                   Eliminar
                 </button>
@@ -358,6 +393,15 @@ const formatDate = (date) => {
     </div>
 
     <FeatureUnavailableModal v-if="showFeatureModal" :feature="unavailableFeature" @close="showFeatureModal = false" />
+    <RenameItemModal
+      v-if="showRenameModal"
+      :model-value="showRenameModal"
+      :item="renameTarget"
+      :error="renameError"
+      :is-saving="isRenaming"
+      @close="closeRenameModal"
+      @submit="handleRenameSubmit"
+    />
     <VideoPreviewModal
       v-if="showVideoModal"
       :video-url="currentVideoUrl"

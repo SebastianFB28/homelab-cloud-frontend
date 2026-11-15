@@ -93,6 +93,19 @@ export const useFilesStore = defineStore('files', () => {
     }
   };
 
+  const renameItem = async (item, newName) => {
+    const trimmedName = newName.trim();
+    if (!trimmedName) throw new Error('El nombre no puede estar vacío.');
+
+    isMutating.value = true;
+    try {
+      await filesService.renameItem(item.id, trimmedName, item.type === 'folder');
+      await refreshCurrentDirectory();
+    } finally {
+      isMutating.value = false;
+    }
+  };
+
   return {
     currentPath,
     currentFolderId,
@@ -108,6 +121,7 @@ export const useFilesStore = defineStore('files', () => {
     openFolder,
     goBack,
     createFolder,
-    uploadFile
+    uploadFile,
+    renameItem
   };
 });

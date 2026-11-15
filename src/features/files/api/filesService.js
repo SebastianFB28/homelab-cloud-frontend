@@ -32,6 +32,15 @@ export const filesService = {
     return response.data;
   },
 
+  async renameItem(id, newName, isFolder) {
+    const response = await api.patch('/files/rename', {
+      id,
+      newName,
+      isFolder
+    });
+    return response.data;
+  },
+
   async downloadFile(fileId, onDownloadProgress, signal) {
     const response = await api.get(`/files/${fileId}/download`, {
       responseType: 'blob',
@@ -43,18 +52,6 @@ export const filesService = {
     return {
       blob: response.data,
       contentDisposition: response.headers['content-disposition']
-    };
-  },
-
-  async streamFile(fileId, signal) {
-    const response = await api.get(`/files/${fileId}/stream`, {
-      responseType: 'blob',
-      timeout: 0,
-      signal
-    });
-    return {
-      blob: response.data,
-      mimeType: response.headers['content-type']
     };
   }
 };
