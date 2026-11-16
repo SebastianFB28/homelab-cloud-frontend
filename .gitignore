@@ -38,3 +38,6 @@ cypress/screenshots/
 
 # archivos de produccion 
 .env.production
+
+# claude 
+.claude/
